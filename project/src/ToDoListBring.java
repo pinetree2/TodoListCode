@@ -10,6 +10,8 @@ public class ToDoListBring {
         //int mainNum = 3;
         ArrayList<ListDataMain> datamainlist = new ArrayList<ListDataMain>();
 
+        ToDoListBringDAO toDoListBringDAO = new ToDoListBringDAO(datamainlist);
+
         try {
             String printString = "SELECT * FROM messenger.chatmainsub WHERE M_idx >= 1 and M_Task is not null";
             //채팅방번호 조건도 추가되어야함

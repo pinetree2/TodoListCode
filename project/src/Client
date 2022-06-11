@@ -1,0 +1,211 @@
+package GUI.Main_chatting;
+
+import GUI.Log_in_GUI.LoginView;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+public class Client extends JFrame implements Runnable{ //port와 대화명 입력하고 접속
+    MainChatView mainChatView;
+    LoginView loginView;
+
+    private JButton btnokay;
+    private JButton btnInit;
+    private JTextField portText; //port번호 <--portTF
+    private JTextField nickText; //닉네임 <--nameTF
+
+    String myid,myname;
+    String port = "7777";
+
+    BufferedReader in; //서버가 보내주는 메세지
+    OutputStream out; //클라가 서버로 보내주는 메세지
+    Socket socket; //서버와 접속
+
+
+
+    public Client() { //port랑 nickname 입력받음
+        // setting
+        setTitle("enter chatroom");
+        setSize(280, 180);
+        setResizable(false);
+        setLocation(800, 450);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        // panel
+        JPanel panel = new JPanel();
+        placeClient_form(panel);
+
+        //background color 지정 (87, 108, 139)
+        Color color = new Color(87, 108, 139);
+        panel.setBackground(color);
+
+        // add
+        add(panel);
+
+        // visiible
+        setVisible(true);
+    }
+
+
+
+    public void placeClient_form(JPanel panel){
+        /*
+        panel.setLayout(null);
+        JLabel portLabel = new JLabel("port : ");
+        portLabel.setBounds(10, 10, 80, 25);
+        panel.add(portLabel);
+
+        JLabel nickLabel = new JLabel("Nick Name : ");
+        nickLabel.setBounds(10, 40, 80, 25);
+        panel.add(nickLabel);
+
+
+        portText = new JTextField(20);
+        portText.setBounds(100, 10, 160, 25);
+        panel.add(portText);
+
+        nickText = new JTextField(20);
+        nickText.setBounds(100, 40, 160, 25);
+        panel.add(nickText);
+        */
+
+
+
+        btnInit = new JButton("cancel");
+        btnInit.setBounds(10, 110, 100, 25);
+        //지우기 버튼색 지정
+        Color color1 = new Color(255, 195, 195);
+        btnInit.setBackground(color1);
+        panel.add(btnInit);
+        btnInit.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                portText.setText("");
+                nickText.setText("");
+            }
+        });
+
+        btnokay = new JButton("okay");
+        btnokay.setBounds(160, 110, 100, 25);
+        //로그인 버튼색 지정
+        Color color2 = new Color(252, 157, 157);
+        btnokay.setBackground(color2);
+        panel.add(btnokay);
+
+
+        btnokay.addActionListener(new ActionListener() {
+            //port 번호 일치, 닉네임 입력 true <---- 추가해야 돼
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                connectProcess(); //port 번호랑 닉네임 입력하고 okay누르면 채팅화면 켜져야함
+                //mainChatView.showMainChatFrame(); //확인버튼 누르면 메인채팅화면 연결
+            }
+        });
+
+
+
+    }
+
+    void closeProcess(){ //나가기
+        //서버로 전달하기 전에 내 채팅방에 있는 모든 값 초기화 (채팅방 초기화 작업)
+        //mainChatView.list.removeAll(); //모두 지워라
+        mainChatView.chattingArea.setText(null); //지움
+        mainChatView.setVisible(false);
+
+        //서버로 전달
+        try{
+            out.write(("250|\n").getBytes());
+            in.close();
+            out.close();
+        } catch (IOException e) {}
+    }
+
+    void sendProcess(){
+        String msg = mainChatView.chattingBox.getText().trim();
+        if(msg.length()<1) return;
+        try{
+            out.write(("300|"+msg+"\n").getBytes());
+        } catch (Exception e) {
+            mainChatView.chattingBox.setText(null);
+            mainChatView.chattingBox.requestFocus();
+        }
+    }
+
+    void connectProcess(){
+        //String port = portText.getText().trim();
+        //myname = nickText.getText().trim();
+
+        myname = loginView.userText.getText().trim(); //사용자가 입력해서 로그인 성공한 id
+
+        if(myname.length()<1) return;
+        if(port.length()<1 || !port.equals("7777")) return;
+        try{ //okay버튼 누르면 여기로 넘어옴
+            //socket = new Socket("localhost",7777);
+            socket = new Socket("127.0.0.1",7777);
+            //setVisible(false);
+
+            //mainChatView.setVisible(true);
+            mainChatView = new MainChatView(); //객체생성
+            mainChatView.showMainChatFrame(); //채팅화면 보여줘라
+
+            //mainChatView.chattingArea.setText("접속성공!");
+            System.out.println("접속 성공!!");
+
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            out = socket.getOutputStream();
+            out.write(("200|"+myname+"\n").getBytes());
+
+            //접속이 끝나면 Runnable연결, 서버에서 받아야 함. 스레에서 받아야함
+            new Thread(this).start(); //클래스 참조변수 현재 클래스를 쓰레드 객체로 표현하여 ..start()-->run호출
+        } catch (Exception e) {
+            System.out.println("Connection missing....");
+            //mainChatView.chattingArea.setText("접속 실패");
+        }
+    }
+
+
+
+    public void run(){
+        while (true){
+            try{
+                String msg = in.readLine(); //in은 소켓으로 본다.
+                if(msg==null) return; //메세지가 파괴되면
+                StringTokenizer st = new StringTokenizer(msg,"|");
+                int protocol = Integer.parseInt(st.nextToken()); //100
+                switch (protocol){
+                    case 200:
+                    {//입장. 현재 100을 가리키고 있음
+                        String temp = st.nextToken(); //대화명
+                        //chat.list.add(temp);
+                        mainChatView.chattingArea.append("\n"+temp+"님이 입장하셨습니다.");
+                    }break;
+                    case 300:
+                    { //메세지 뿌리기
+                        mainChatView.chattingArea.append("\n"+st.nextToken());
+                    }break;
+                    case 250:
+                    { //서버에서 받음. (나를 포함 모두에게 보냄)
+                        String temp = st.nextToken();
+                        //chat.list.remove(temp); //리스트에서 이사람 정보 빼냄
+                        mainChatView.chattingArea.append("\n*알림*"+temp+"님이 퇴장하셨습니다.");
+                    }break;
+                }
+            } catch (Exception e) {
+                return;
+            }
+        }
+    }
+
+
+
+
+    public static void main(String[] args){
+        new Client();
+    }
+}

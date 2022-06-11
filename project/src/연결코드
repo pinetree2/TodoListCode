@@ -1,0 +1,38 @@
+private void sendMessage(){
+        PrintWriter pw;
+        try{
+            pw = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8),true);
+            String message = chattingBox.getText();
+            String request = "message:"+message+ "\r\n";
+            pw.println(request);
+
+            chattingBox.setText("");
+            chattingBox.requestFocus();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private class ChatClientReceiveThread extends Thread{
+        Socket socket = null;
+
+        ChatClientReceiveThread(Socket socket){this.socket = socket;}
+
+        public void run(){
+            try{
+                //BufferedReader/Writer == InputStramReader/Writer <-- 문자단위 입출력
+                //BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                dis = new DataInputStream(socket.getInputStream());   //여기 확인
+
+                while (true){
+                    String msg = dis.readLine(); //이거도 확인
+                    chattingArea.append(msg);
+                    chattingArea.append("\n");
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
